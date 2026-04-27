@@ -6,10 +6,10 @@ A Neovim plugin that inserts and updates **schema-pointer directives** in
 configuration files, so any editor or LSP that reads them can validate the
 file against the right schema.
 
-This is meant to **complement, not replace, your existing
-LSP / language-server setup.** Instead of relying on per-machine editor config to bind a file to a schema,
-it writes a directive that rides in version control with the file itself — so every collaborator's
-editor picks up the same schema without further setup.
+This is meant to _complement_, not replace, your existing
+LSP / language-server setup. Instead of relying on per-machine editor config to bind a file to a schema,
+it writes a directive that rides in version-control within the file itself, so every collaborator's
+editor picks up the same schema without having a similar setup as yours.
 
 Supports JSON, YAML, and TOML out of the box. 
 
@@ -59,6 +59,11 @@ Run `:checkhealth shibboleth` to verify.
 :ShibbolethModeline <ft>         " write modeline with explicit filetype
 :ShibbolethModeline remove       " remove modeline
 ```
+
+`:Shibboleth` resolves candidates by **matching the buffer's path against a
+curated set of file globs** (e.g. `package.json` → npm schema,
+`**/.github/workflows/*.yml` → GitHub Actions schema,
+`**/.claude/settings.json` → Claude Code settings).
 
 `:ShibbolethModeline` uses **the buffer's existing filetype** (`vim.bo.filetype`).
 If neither the buffer's filetype nor an explicit `<ft>` argument is available,
