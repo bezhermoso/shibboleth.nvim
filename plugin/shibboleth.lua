@@ -35,3 +35,18 @@ end, {
     return out
   end,
 })
+
+vim.api.nvim_create_user_command('ShibbolethSchemaStore', function(opts)
+  local ok, result = require('shibboleth.registry.schemastore').load({ force = opts.bang })
+  if ok then
+    vim.notify(string.format(
+      'shibboleth: loaded %d schemas, %d patterns from SchemaStore',
+      result.schemas, result.patterns
+    ), vim.log.levels.INFO)
+  else
+    vim.notify('shibboleth: SchemaStore load failed: ' .. tostring(result), vim.log.levels.ERROR)
+  end
+end, {
+  bang = true,
+  desc = 'Load SchemaStore catalog into the registry (use ! to force a refresh)',
+})

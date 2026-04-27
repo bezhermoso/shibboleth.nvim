@@ -105,19 +105,22 @@ require('shibboleth').setup({
 ## Optional: load SchemaStore catalog
 
 For the long tail of schemas (1,200+ entries from
-[json.schemastore.org](https://www.schemastore.org/)), opt in:
+[json.schemastore.org](https://www.schemastore.org/)), opt in via either
+the command or the Lua API.
+
+```vim
+:ShibbolethSchemaStore           " load (uses local cache after first fetch)
+:ShibbolethSchemaStore!          " force refresh from the network
+```
 
 ```lua
 require('shibboleth.registry.schemastore').load()
+require('shibboleth.registry.schemastore').load({ force = true })
 ```
 
 This fetches the catalog of schemas and merges them into your registry.
-
-To force a refresh:
-
-```lua
-require('shibboleth.registry.schemastore').load({ force = true })
-```
+The catalog is cached at `stdpath('cache')/shibboleth/catalog.json`;
+subsequent loads use the cache unless `!` (or `force = true`) is passed.
 
 
 ## Development
