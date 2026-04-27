@@ -1,0 +1,18 @@
+# Generated help tag index. Plugin managers regenerate this on install,
+# so committing it just risks shipping a stale version.
+doc/tags
+
+# Test runner artifacts (see Makefile `clean` target).
+.tests/
+
+# macOS Finder metadata.
+.DS_Store
+
+# Editor / language-server local caches.
+.luarc.json
+.vscode/
+.idea/
+
+# Luarocks (only relevant if anyone uses rocks for development deps).
+lua_modules/
+.luarocks/

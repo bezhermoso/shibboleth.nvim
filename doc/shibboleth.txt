@@ -1,0 +1,279 @@
+*shibboleth.txt*  Schema-pointer directives for JSON / YAML / TOML in Neovim.
+
+Author:  Bez Hermoso
+License: MIT
+
+==============================================================================
+CONTENTS                                                 *shibboleth-contents*
+
+  1. Introduction ..................... |shibboleth-introduction|
+  2. Requirements ..................... |shibboleth-requirements|
+  3. Installation ..................... |shibboleth-installation|
+  4. Commands ......................... |shibboleth-commands|
+       :Shibboleth .................... |:Shibboleth|
+       :Shibboleth modeline ........... |:Shibboleth-modeline|
+       :Shibboleth schemastore ........ |:Shibboleth-schemastore|
+  5. Configuration .................... |shibboleth-configuration|
+  6. SchemaStore loader ............... |shibboleth-schemastore|
+  7. Health check ..................... |shibboleth-health|
+  8. Lua API .......................... |shibboleth-api|
+  9. About ............................ |shibboleth-about|
+
+==============================================================================
+1. INTRODUCTION                       *shibboleth* *shibboleth-introduction*
+
+shibboleth.nvim inserts and updates schema-pointer directives in
+configuration files, so any editor or LSP that reads them can validate the
+file against the right schema.
+
+It is meant to *complement*, not replace, your existing LSP / language-server
+setup. Instead of relying on per-machine editor config to bind a file to a
+schema, shibboleth writes a directive that rides in version control with the
+file itself — so every collaborator's editor picks up the same schema
+without further setup.
+
+Supported filetypes and the directives written in each:
+
+  JSON     top-level "$schema" property
+  YAML     # yaml-language-server: $schema=URL  (or # $schema: URL)
+  TOML     #:schema URL                          (Taplo convention)
+  any      # vim: set ft=<filetype>:             (Vim filetype modeline)
+
+All edits go through |nvim_buf_set_text()| / |nvim_buf_set_lines()| against
+the active buffer. Nothing is written to disk until you `:w`.
+
+==============================================================================
+2. REQUIREMENTS                                      *shibboleth-requirements*
+
+  - Neovim 0.10 or later (uses |vim.glob.to_lpeg()| for LSP-style globs,
+    including `**` and `{a,b}` brace alternation).
+  - Tree-sitter `json` parser (for the JSON handler).
+  - `curl` on $PATH (only if you use the SchemaStore loader).
+
+Run `:checkhealth shibboleth` to verify your environment.
+
+==============================================================================
+3. INSTALLATION                                      *shibboleth-installation*
+
+With lazy.nvim: >lua
+
+    {
+      'bezhermoso/shibboleth.nvim',
+      cmd = 'Shibboleth',
+      opts = {},
+    }
+<
+With other plugin managers, ensure the plugin's directory is on |runtimepath|
+and that `:helptags` has been generated for the `doc/` directory. Most plugin
+managers do this automatically.
+
+==============================================================================
+4. COMMANDS                                              *shibboleth-commands*
+
+Everything is a subcommand of `:Shibboleth`. The first argument selects the
+operation namespace; subsequent arguments are namespace-specific.
+
+Tab-completion is position-aware:
+
+  - First arg:           `modeline`, `remove`, `schemastore`.
+  - After `modeline`:    Neovim's filetype list plus `remove`.
+  - After `schemastore`: `refresh`.
+
+------------------------------------------------------------------------------
+SCHEMA DIRECTIVE                                              *:Shibboleth*
+
+`:Shibboleth`                Open the schema picker for the current buffer.
+
+`:Shibboleth` {url}          Set the schema URL directly, bypassing the
+                             picker. {url} must start with `http://` or
+                             `https://`.
+
+`:Shibboleth remove`         Remove an existing schema directive from the
+                             current buffer.
+
+`:Shibboleth` resolves candidates by matching the buffer's path against a
+curated set of file globs (e.g. `package.json` → npm schema,
+`**/.github/workflows/*.yml` → GitHub Actions schema,
+`**/.claude/settings.json` → Claude Code settings).
+
+The picker is built on |vim.ui.select()| and shows, in order:
+
+  1. A `Remove existing directive` entry (only if one is detected).
+  2. Glob-matched schemas (starred), with the matched glob shown.
+  3. Other schemas in the registry whose `ft` includes the buffer's
+     |filetype|, alphabetical.
+  4. An `Enter URL...` entry that opens |vim.ui.input()| for free-form input.
+
+Selecting a schema applies its URL via the appropriate filetype handler.
+Selecting Remove deletes the existing directive.
+
+------------------------------------------------------------------------------
+MODELINE                                              *:Shibboleth-modeline*
+
+`:Shibboleth modeline`            Insert or update a Vim filetype modeline,
+                                  using the buffer's |filetype| value.
+
+`:Shibboleth modeline` {ft}       Insert or update a modeline with an
+                                  explicit filetype.
+
+`:Shibboleth modeline remove`     Remove an existing modeline.
+
+Writes a Vim modeline like `# vim: set ft=ruby:` to the top of the buffer,
+after any shebang. The comment prefix is determined by the target filetype's
+|commentstring| via |vim.filetype.get_option()|, so a Lua modeline produces
+`-- vim: set ft=lua:` even if the buffer's current |filetype| has not been
+recognized.
+
+If neither the buffer's filetype nor an explicit {ft} argument is available,
+the command prompts for one via |vim.ui.input()|.
+
+For extension-less scripts where you want the filetype detected from a
+shebang, install something like shebang.nvim or rely on Neovim's built-in
+filetype detection (|vim.filetype|), then run `:Shibboleth modeline` to
+persist the filetype hint into the file.
+
+------------------------------------------------------------------------------
+SCHEMASTORE                                        *:Shibboleth-schemastore*
+
+`:Shibboleth schemastore`            Load the JSON SchemaStore catalog into
+                                     the registry. Uses the local cache if
+                                     present.
+
+`:Shibboleth schemastore refresh`    Force-refresh the catalog from the
+                                     network, bypassing the cache.
+
+See |shibboleth-schemastore| for details about what gets merged.
+
+==============================================================================
+5. CONFIGURATION                                    *shibboleth-configuration*
+
+Call `setup()` from your config (or pass `opts = {...}` via lazy.nvim): >lua
+
+    require('shibboleth').setup({
+      yaml = {
+        style = 'modeline',  -- 'modeline' (default) or 'intellij'
+      },
+      fallback_commentstring = '# %s',
+
+      -- Add custom schemas to the registry.
+      schemas = {
+        ['my-thing'] = {
+          name = 'My Thing config',
+          url  = 'https://example.com/my-thing.schema.json',
+          ft   = { 'yaml' },
+        },
+      },
+
+      -- Add custom glob patterns. `schema` references a key
+      -- from the schemas table (curated or user-supplied).
+      patterns = {
+        { pattern = '*.mything.{yml,yaml}', schema = 'my-thing' },
+      },
+    })
+<
+Configuration keys:
+
+`yaml.style`                 'modeline' (default) writes
+                             `# yaml-language-server: $schema=...`. 'intellij'
+                             writes `# $schema: ...`. When updating an
+                             existing directive, the original style is
+                             preserved regardless of this setting.
+
+`fallback_commentstring`     Used for the modeline command when the target
+                             filetype's |commentstring| is unknown. Default
+                             `'# %s'`.
+
+`schemas`                    Map of schema id → `{ name, url, ft }`. Merged
+                             on top of the curated registry; user entries
+                             with the same id override curated ones.
+
+`patterns`                   List of `{ pattern, schema }` rows. Appended to
+                             the curated patterns. Globs follow LSP
+                             semantics: `*` (single segment), `**` (any
+                             depth), `{a,b}` (alternation), `?`, `[abc]`,
+                             `[!abc]`.
+
+==============================================================================
+6. SCHEMASTORE LOADER                                 *shibboleth-schemastore*
+
+For the long tail of schemas (~1,200+ entries from json.schemastore.org),
+opt in via the command or the Lua API:
+>vim
+    :Shibboleth schemastore
+    :Shibboleth schemastore refresh
+<
+>lua
+    require('shibboleth.registry.schemastore').load()
+    require('shibboleth.registry.schemastore').load({ force = true })
+<
+The loader fetches `https://www.schemastore.org/api/json/catalog.json` via
+`curl`, caches the result at `stdpath('cache')/shibboleth/catalog.json`, and
+merges every schema and `fileMatch` glob into the registry.
+
+SchemaStore entries are namespaced with a `schemastore:` prefix in the schema
+id space, so curated entries always win on collision.
+
+LSP-style globs in catalog entries — including `**` for arbitrary depth and
+`{a,b}` brace alternation — are matched correctly via |vim.glob.to_lpeg()|.
+
+Caveats:
+
+  - SchemaStore entries that lack a `fileMatch` (a small subset) won't be
+    auto-suggested by the picker, but remain pickable from the full list.
+  - Versioned schemas (entries with a `versions` field) collapse to the
+    top-level URL, which is the latest the catalog advertises.
+
+==============================================================================
+7. HEALTH CHECK                                            *shibboleth-health*
+
+Run `:checkhealth shibboleth` to verify:
+
+  - Neovim version (>= 0.10).
+  - Loaded schema and pattern counts.
+  - Registered handler filetypes.
+  - Tree-sitter `json` parser availability.
+  - `curl` availability (for the SchemaStore loader).
+
+==============================================================================
+8. LUA API                                                    *shibboleth-api*
+
+Public functions in `require('shibboleth')`:
+
+`setup({opts})`                                          *shibboleth.setup()*
+        Apply user configuration. Optional; defaults work without setup.
+
+`pick({bufnr})`                                           *shibboleth.pick()*
+        Open the schema picker for {bufnr} (defaults to the current buffer).
+
+`set({bufnr}, {url})`                                      *shibboleth.set()*
+        Set the schema URL directly without prompting.
+
+`remove({bufnr})`                                       *shibboleth.remove()*
+        Remove an existing schema directive.
+
+`modeline({bufnr}, {ft})`                              *shibboleth.modeline()*
+        Insert or update a Vim filetype modeline. Uses {ft} if provided,
+        otherwise the buffer's |filetype|, otherwise prompts.
+
+`modeline_remove({bufnr})`                      *shibboleth.modeline_remove()*
+        Remove an existing modeline.
+
+SchemaStore loader:
+
+`require('shibboleth.registry.schemastore').load({opts})`
+                                                  *shibboleth.schemastore.load()*
+        Fetch and merge the JSON SchemaStore catalog. Returns
+        `(true, { schemas, patterns })` on success, or `(false, error)` on
+        failure. {opts.force} bypasses the cache.
+
+==============================================================================
+9. ABOUT                                                    *shibboleth-about*
+
+shibboleth.nvim is named after the biblical |shibboleth|, a small utterance
+that revealed group identity at a river crossing. Like that small word, a
+schema directive is the small mark inside a config file that tells outside
+tools what the file is.
+
+Repository: https://github.com/bezhermoso/shibboleth.nvim
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
