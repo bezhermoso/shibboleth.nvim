@@ -35,7 +35,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```lua
 {
   'bezhermoso/shibboleth.nvim',
-  cmd = { 'Shibboleth', 'ShibbolethModeline' },
+  cmd = 'Shibboleth',
   opts = {},
 }
 ```
@@ -50,32 +50,44 @@ Run `:checkhealth shibboleth` to verify.
 
 ## Commands
 
+Everything goes through a single `:Shibboleth` command with three subcommand
+namespaces:
+
 ```vim
+" Schema directive (the primary operation)
 :Shibboleth                      " open schema picker for current buffer
 :Shibboleth <url>                " set schema URL directly (no picker)
 :Shibboleth remove               " remove existing directive
 
-:ShibbolethModeline              " write `# vim: set ft=<bo.filetype>:` modeline
-:ShibbolethModeline <ft>         " write modeline with explicit filetype
-:ShibbolethModeline remove       " remove modeline
+" Filetype modeline (the bonus feature)
+:Shibboleth modeline             " write `# vim: set ft=<bo.filetype>:` modeline
+:Shibboleth modeline <ft>        " write modeline with explicit filetype
+:Shibboleth modeline remove      " remove modeline
+
+" SchemaStore catalog
+:Shibboleth schemastore          " load catalog (uses cache after first fetch)
+:Shibboleth schemastore refresh  " force refetch from network
 ```
+
+Tab-completion is position-aware: arg 1 offers the subcommand list; after
+`modeline` it offers Neovim's filetype list plus `remove`; after
+`schemastore` it offers `refresh`.
 
 `:Shibboleth` resolves candidates by **matching the buffer's path against a
 curated set of file globs** (e.g. `package.json` → npm schema,
 `**/.github/workflows/*.yml` → GitHub Actions schema,
 `**/.claude/settings.json` → Claude Code settings).
 
-`:ShibbolethModeline` uses **the buffer's existing filetype** (`vim.bo.filetype`).
+`:Shibboleth modeline` uses **the buffer's existing filetype** (`vim.bo.filetype`).
 If neither the buffer's filetype nor an explicit `<ft>` argument is available,
-it prompts for one via `vim.ui.input`. Tab-completion offers Neovim's filetype
-list (plus the `remove` keyword).
+it prompts for one via `vim.ui.input`.
 
 > [!NOTE]
 > For extension-less scripts where you want the filetype detected from a
 > shebang, install something like
 > [shebang.nvim](https://github.com/LunarLambda/shebang.nvim) or rely on
 > Neovim's built-in filetype detection (`vim.filetype`). Then run
-> `:ShibbolethModeline` to persist that filetype hint into the file.
+> `:Shibboleth modeline` to persist that filetype hint into the file.
 
 ## Configuration
 
@@ -109,8 +121,8 @@ For the long tail of schemas (1,200+ entries from
 the command or the Lua API.
 
 ```vim
-:ShibbolethSchemaStore           " load (uses local cache after first fetch)
-:ShibbolethSchemaStore!          " force refresh from the network
+:Shibboleth schemastore          " load (uses local cache after first fetch)
+:Shibboleth schemastore refresh  " force refresh from the network
 ```
 
 ```lua
@@ -120,7 +132,7 @@ require('shibboleth.registry.schemastore').load({ force = true })
 
 This fetches the catalog of schemas and merges them into your registry.
 The catalog is cached at `stdpath('cache')/shibboleth/catalog.json`;
-subsequent loads use the cache unless `!` (or `force = true`) is passed.
+subsequent loads use the cache unless `refresh` (or `force = true`) is passed.
 
 
 ## Development
