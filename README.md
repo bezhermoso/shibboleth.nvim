@@ -35,7 +35,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```lua
 {
   'bezhermoso/shibboleth.nvim',
-  cmd = 'Shibboleth',
+  event = 'VeryLazy',
   opts = {},
 }
 ```
@@ -48,10 +48,7 @@ Requirements:
 
 Run `:checkhealth shibboleth` to verify.
 
-## Commands
-
-Everything goes through a single `:Shibboleth` command with three subcommand
-namespaces:
+## `:Shibboleth` Command & Subcommands
 
 ```vim
 " Schema directive (the primary operation)
@@ -68,10 +65,6 @@ namespaces:
 :Shibboleth schemastore          " load catalog (uses cache after first fetch)
 :Shibboleth schemastore refresh  " force refetch from network
 ```
-
-Tab-completion is position-aware: arg 1 offers the subcommand list; after
-`modeline` it offers Neovim's filetype list plus `remove`; after
-`schemastore` it offers `refresh`.
 
 `:Shibboleth` resolves candidates by **matching the buffer's path against a
 curated set of file globs** (e.g. `package.json` → npm schema,
