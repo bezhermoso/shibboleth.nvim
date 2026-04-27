@@ -57,6 +57,8 @@ return {
   { pattern = '**/.claude/keybindings.json',        schema = 'claude-code-keybindings' },
   { pattern = '**/.claude-plugin/plugin.json',      schema = 'claude-code-plugin' },
   { pattern = '**/.claude-plugin/marketplace.json', schema = 'claude-code-marketplace' },
+  -- See https://github.com/bezhermoso/claude-mergerc
+  { pattern = '**/.config/claude/fragments/*.json', schema = 'claude-code-settings' },
   { pattern = '**/.codex/config.toml',              schema = 'codex-cli' },
   { pattern = '.aider.conf.{yml,yaml}',             schema = 'aider' },
   { pattern = '.roomodes',                          schema = 'roo-code' },
