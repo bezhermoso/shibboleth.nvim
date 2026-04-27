@@ -4,7 +4,7 @@
 
 A Neovim plugin that inserts and updates **schema-pointer directives** in
 configuration files, so any editor or LSP that reads them can validate the
-file against the right schema.
+file against the right schema. Resolves candidate schemas by matching the buffer's path against a [curated set of pairings]([url](./lua/shibboleth/registry/patterns.lua)).
 
 This is meant to _complement_, not replace, your existing
 LSP / language-server setup. Instead of relying on per-machine editor config to bind a file to a schema,
