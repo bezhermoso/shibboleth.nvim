@@ -1,5 +1,7 @@
 # shibboleth.nvim
 
+[![tests](https://github.com/bezhermoso/shibboleth.nvim/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/bezhermoso/shibboleth.nvim/actions/workflows/test.yml)
+
 > *shib·bo·leth* — a small utterance that reveals what one is.
 
 A Neovim plugin that inserts and updates **schema-pointer directives** in
